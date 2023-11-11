@@ -9,12 +9,13 @@ pygame docs
 
 import pygame
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 RED = (255, 0, 0) 
 BGCOLOR = "purple"
-ATOM_SIZE=10
-MAX_SPEED=200
+ATOM_SIZE=10 # pixel diameter for one atom
+MAX_SPEED=50 # in atom diameter per second
 SCREEN_HEIGHT=500
 SCREEN_WIDTH=800
 
@@ -29,7 +30,8 @@ class Atom(pygame.sprite.Sprite):
         
         self.color=color
         self.radius=radius
-        self.vel=pygame.Vector2(rng.uniform(-1, 1), rng.uniform(-1, 1)) * MAX_SPEED
+        #Initial vel, uniform
+        self.vel=pygame.Vector2.from_polar((rng.uniform(0, MAX_SPEED), rng.uniform(0, 365)))
         
         self.image = pygame.Surface([radius*2, radius*2], pygame.SRCALPHA, 32)
         self.image = self.image.convert_alpha()        
@@ -38,7 +40,7 @@ class Atom(pygame.sprite.Sprite):
         self.pos = self.rect.center
         
     def update(self):
-        self.pos += (self.vel * dt)
+        self.pos += (self.vel * dt * ATOM_SIZE)
         self.rect.center =self.pos 
         
         
@@ -64,8 +66,11 @@ clock = pygame.time.Clock()
 running = True
 dt = 0
 
-# player_pos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 
+# some setup for looking at energy
+Etots=[]
+ts=[]
+kk=0
 
 # make walls
 walls=pygame.sprite.Group()
@@ -81,11 +86,8 @@ walls.add(object_)
 
 # Setup a list for the atoms
 atoms = pygame.sprite.Group() 
-#object_ = Atom(RED, ATOM_SIZE) 
-#object_.rect.x = 200
-#object_.rect.y = 300
-#atoms.add(object_) 
 
+# Handle only one atom per click
 new_click=True        
 
 while running:
@@ -134,14 +136,11 @@ while running:
     # fill the screen with a color to wipe away anything from last frame
     screen.fill(BGCOLOR)
 
-    #player_pos.x, player_pos.y = pygame.mouse.get_pos()
-    #pygame.draw.circle(screen, "red", player_pos, 40)
-
+    # draw atoms and walls
     walls.draw(screen)
     atoms.draw(screen) 
     
 
-    
     # flip() the display to put your work on screen
     pygame.display.flip()
 
@@ -150,4 +149,21 @@ while running:
     # independent physics.
     dt = clock.tick(60) / 1000
 
+    #Store total Ekin, each 10 frames
+    if kk==10:
+        kk=0
+        ts.append(pygame.time.get_ticks()/1000)
+        Etot=0
+        for atom in atoms:
+            Etot += atom.vel.magnitude()
+        Etots.append(Etot)
+    else:
+        kk += 1
+
+
 pygame.quit()
+
+#Make a plot of energy
+fig, ax = plt.subplots()
+ax.plot(ts, Etots, linewidth=2.0)
+plt.show()
