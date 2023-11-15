@@ -42,7 +42,7 @@ class Sim():
                 sig12 = sig6 * sig6     
                 eps = np.sqrt(atom.eps * atom2.eps) 
                 r = atom2.pos - atom.pos
-                r2 = r.length()
+                r2 = r.length() * r.length() 
                 r6 = r2 * r2 * r2
                 r12 = r6 * r6        
                 pre = eps*(-48.0*sig12/r12+24.0*sig6/r6)/r2
