@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+From 
+pygame docs
+
+
+"""
+
+import pygame
+import numpy as np
+import matplotlib.pyplot as plt
+from itertools import chain
+
+RED = (255, 0, 0) 
+BGCOLOR = "purple"
+ATOM_SIZE=10 # pixel diameter for one atom
+MAX_SPEED=10 # 
+SCREEN_HEIGHT=500
+SCREEN_WIDTH=800
+WALL_THICKNESS=10
+
+rng = np.random.default_rng()
+
+# class definitions
+
+
+class Sim():
+    def __init__(self):
+        self.dt = 0.005*ATOM_SIZE
+        self.eps_wall=10
+        self.x0=WALL_THICKNESS
+        self.y0=WALL_THICKNESS
+        self.x1=SCREEN_WIDTH - WALL_THICKNESS # 
+        self.y1=SCREEN_HEIGHT -WALL_THICKNESS # 
+        self.mass=1
+        self.radius=ATOM_SIZE
+        self.eps=1
+        self.Natoms=0
+        self.atom_x=np.empty([0])
+        self.atom_y=np.empty([0])  
+        self.atom_vx=np.empty([0])
+        self.atom_vy=np.empty([0])
+        self.atom_fx=np.empty([0])
+        self.atom_fy=np.empty([0])
+
+    def add_atom(self,xpos,ypos):
+        #Initial vel, uniform
+        vel=pygame.Vector2.from_polar((0.5, rng.uniform(0, 365)))
+        
+        self.atom_x = np.append(self.atom_x, xpos)
+        self.atom_y = np.append(self.atom_y, ypos)
+        self.atom_vx = np.append(self.atom_vx,vel.x)
+        self.atom_vy = np.append(self.atom_vy,vel.y)
+        #self.atom_vx = np.append(self.atom_vx,0)
+        #self.atom_vy = np.append(self.atom_vy,0)
+        self.Natoms += 1
+        
+
+
+    def update_forces(self):
+        self.atom_fx=np.zeros_like(self.atom_x)
+        self.atom_fy=np.zeros_like(self.atom_x)
+        
+        # Repulsive walls
+        tmp = (self.x0-self.atom_x)*(self.x0-self.atom_x)
+        tmp *= tmp*tmp
+        self.atom_fx += self.eps_wall/tmp
+        tmp = (self.x1-self.atom_x)*(self.x1-self.atom_x)
+        tmp *= tmp*tmp
+        self.atom_fx -= self.eps_wall/tmp
+        tmp = (self.y0-self.atom_y)*(self.y0-self.atom_y)
+        tmp *= tmp*tmp;
+        self.atom_fy += self.eps_wall/tmp
+        tmp = (self.y1-self.atom_y)*(self.y1-self.atom_y)
+        tmp *= tmp*tmp
+        self.atom_fy -= self.eps_wall/tmp      
+
+        # # Lennard-Jones pair forces between particles 
+        # for now all atoms are the same
+        sig = self.radius + self.radius
+        sig2 = sig * sig
+        sig6 = sig2 * sig2 * sig2 
+        sig12 = sig6 * sig6     
+
+        eps = np.sqrt(self.eps * self.eps) 
+
+        for kk in range(0, len(self.atom_x)): # loop all atoms
+            idx=list(chain(range(0,kk),range(kk+1,len(self.atom_x)))) # index of other atoms
+            x = self.atom_x.take(idx) - self.atom_x[kk]
+            y = self.atom_y.take(idx) - self.atom_y[kk]
+            r2 = np.square(x) + np.square(y)
+            r6 = r2 * r2 * r2
+            r12 = r6 * r6        
+            pre = eps*(-48.0*sig12/r12+24.0*sig6/r6)/r2
+            self.atom_fx[kk] += np.sum(x*pre)
+            self.atom_fy[kk] += np.sum(y*pre)
+
+    	
+    def update(self):
+        self.atom_x += self.atom_vx * self.dt
+        self.atom_y += self.atom_vy * self.dt
+        
+        self.update_forces()
+        
+        self.atom_vx += self.atom_fx / self.mass * self.dt
+        self.atom_vy += self.atom_fy / self.mass * self.dt 
+            
+
+class Atom(pygame.sprite.Sprite):
+    def __init__(self, color, radius, Natom):
+        # Call the parent class (Sprite) constructor
+        super().__init__()
+        self.radius = radius
+        self.color=color        
+        self.image = pygame.Surface([radius*2, radius*2], pygame.SRCALPHA, 32)
+        self.image = self.image.convert_alpha()        
+        pygame.draw.circle(self.image, self.color, (self.radius, self.radius), radius)
+        self.rect = self.image.get_rect()
+        self.pos = self.rect.center
+        self.Natom = Natom # atom number in the sim
+    
+    def update(self,sim):    
+        self.rect.center = (sim.atom_x[self.Natom] , sim.atom_y[self.Natom]) 
+        
+        
+class Wall(pygame.sprite.Sprite):
+    def __init__(self, x1 , y1, x2, y2, color, normal):
+        # Call the parent class (Sprite) constructor
+        super().__init__()
+                
+        self.color=color
+        self.image = pygame.Surface([x2-x1, y2-y1], pygame.SRCALPHA, 32)
+        self.image = self.image.convert_alpha()        
+        pygame.draw.rect(self.image, self.color, pygame.Rect(0, 0, x2-x1,y2-y1))
+        self.rect = self.image.get_rect()
+        self.rect.top = y1
+        self.rect.left = x1
+        self.normal=normal
+
+
+# make sim object
+sim = Sim()
+
+# pygame setup
+pygame.init()
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+clock = pygame.time.Clock()
+
+# Setup a list for the sprites for atoms
+atoms = pygame.sprite.Group() 
+
+# make wall sprites
+walls=pygame.sprite.Group()
+object_=Wall(0, 0, WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(1,0))
+walls.add(object_)
+object_=Wall(SCREEN_WIDTH-WALL_THICKNESS, 0, SCREEN_WIDTH, SCREEN_HEIGHT,'green', pygame.Vector2(-1,0))
+walls.add(object_)
+object_=Wall(WALL_THICKNESS, 0, SCREEN_WIDTH-WALL_THICKNESS, WALL_THICKNESS,'green', pygame.Vector2(0,-1))
+walls.add(object_)
+object_=Wall(WALL_THICKNESS, SCREEN_HEIGHT-WALL_THICKNESS, SCREEN_WIDTH-WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(0,1))
+walls.add(object_)
+
+
+# Handle only one atom per click
+new_click=True        
+
+running = True
+
+# counter from when to redraw the screen
+Nsteps = 0
+
+
+testT=0
+testN=0
+
+while running:
+        
+    # do the simulation update
+    sim.update()    
+    Nsteps += 1
+
+    testN += 1
+    if pygame.time.get_ticks()/1000 - testT >= 1:
+        testT=pygame.time.get_ticks()/1000
+        print(testN)
+        testN=0
+
+    # draw if needed
+    if Nsteps >= 200: # 200 should fit with 25 fps (need more checking)
+        Nsteps = 0
+
+        # poll for events
+        # pygame.QUIT event means the user clicked X to close your window
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        m_left, _, _ = pygame.mouse.get_pressed()
+        if m_left and new_click:
+            clickpos_x, clickpos_y = pygame.mouse.get_pos()
+            sim.add_atom(clickpos_x,clickpos_y)
+            object_ = Atom(RED, ATOM_SIZE, sim.Natoms-1) 
+            object_.pos = (clickpos_x, clickpos_y)
+            atoms.add(object_)
+            new_click=False
+        if not m_left:
+            new_click=True
+
+        # Update pixel pos
+        atoms.update(sim)     
+
+        # fill the screen with a color to wipe away anything from last frame
+        screen.fill(BGCOLOR)
+        # draw atoms and walls
+        walls.draw(screen)
+        atoms.draw(screen) 
+        # flip() the display to put your work on screen
+        pygame.display.flip()
+
+        clock.tick(25) # limit to 25 fps, maybe gives more smooth drawing
+
+pygame.quit()
