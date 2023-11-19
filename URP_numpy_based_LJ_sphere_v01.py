@@ -7,8 +7,9 @@
 
 import pygame
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from itertools import chain
+import time
 
 RED = (255, 0, 0) 
 BGCOLOR = "purple"
@@ -171,7 +172,7 @@ walls.add(object_)
 for xpos in range(50,SCREEN_WIDTH-50,70):
     for ypos in range(50,SCREEN_WIDTH-50,70):
         add_atom(sim, atoms, xpos, ypos)
-
+print('Natoms=' + str(sim.Natoms))  
             
 
 # Handle only one atom per click
@@ -183,23 +184,26 @@ running = True
 Nsteps = 0
 
 
-testT=0
+
+# for speed test
+Tstart = time.perf_counter()
+Nmax=8000
 testN=0
+
 
 while running:
         
     # do the simulation update
     sim.update()    
     Nsteps += 1
-
     testN += 1
-    if pygame.time.get_ticks()/1000 - testT >= 1:
-        testT=pygame.time.get_ticks()/1000
-        print(testN)
-        testN=0
+
+    if testN == Nmax:
+        running=False
+        Tend = time.perf_counter()
 
     # draw if needed
-    if Nsteps >= 200: # 200 should fit with 25 fps (need more checking)
+    if Nsteps >= 200: 
         Nsteps = 0
 
         # poll for events
@@ -227,6 +231,8 @@ while running:
         # flip() the display to put your work on screen
         pygame.display.flip()
 
-        clock.tick(25) # limit to 25 fps, maybe gives more smooth drawing
+
+DT=Tend-Tstart
+print('steps per second: ' + str(Nmax/DT))    
 
 pygame.quit()
