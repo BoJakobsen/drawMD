@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-From 
-pygame docs
 
 
 """
@@ -16,8 +14,8 @@ RED = (255, 0, 0)
 BGCOLOR = "purple"
 ATOM_SIZE=10 # pixel diameter for one atom
 MAX_SPEED=10 # 
-SCREEN_HEIGHT=500
-SCREEN_WIDTH=800
+SCREEN_HEIGHT=400
+SCREEN_WIDTH=400
 WALL_THICKNESS=10
 
 rng = np.random.default_rng()
@@ -139,6 +137,14 @@ class Wall(pygame.sprite.Sprite):
         self.normal=normal
 
 
+def add_atom(sim,atoms,xpos,ypos):
+    sim.add_atom(xpos,ypos)
+    object_ = Atom(RED, ATOM_SIZE, sim.Natoms-1) 
+    object_.update(sim)
+    atoms.add(object_)
+
+
+
 # make sim object
 sim = Sim()
 
@@ -161,6 +167,12 @@ walls.add(object_)
 object_=Wall(WALL_THICKNESS, SCREEN_HEIGHT-WALL_THICKNESS, SCREEN_WIDTH-WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(0,1))
 walls.add(object_)
 
+# add some atoms
+for xpos in range(50,SCREEN_WIDTH-50,70):
+    for ypos in range(50,SCREEN_WIDTH-50,70):
+        add_atom(sim, atoms, xpos, ypos)
+
+            
 
 # Handle only one atom per click
 new_click=True        
@@ -199,10 +211,7 @@ while running:
         m_left, _, _ = pygame.mouse.get_pressed()
         if m_left and new_click:
             clickpos_x, clickpos_y = pygame.mouse.get_pos()
-            sim.add_atom(clickpos_x,clickpos_y)
-            object_ = Atom(RED, ATOM_SIZE, sim.Natoms-1) 
-            object_.pos = (clickpos_x, clickpos_y)
-            atoms.add(object_)
+            add_atom(sim, atoms, clickpos_x, clickpos_y)            
             new_click=False
         if not m_left:
             new_click=True
