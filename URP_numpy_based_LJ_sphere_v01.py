@@ -196,8 +196,9 @@ while running:
     # do the simulation update
     sim.update()    
     Nsteps += 1
+ 
+    # for test with fixed number of iterations
     testN += 1
-
     if testN == Nmax:
         running=False
         Tend = time.perf_counter()
