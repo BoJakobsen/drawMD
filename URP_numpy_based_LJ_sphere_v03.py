@@ -47,6 +47,7 @@ def update_forces_JL(atom_x,atom_y,atom_eps,atom_radius):
                     pre = eps*(-48.0*sig12/r12+24.0*sig6/r6)/r2
                     fx[kk] += (x*pre)
                     fy[kk] += (y*pre)
+                    
         return fx, fy
 
 
@@ -73,14 +74,14 @@ class Sim():
 
     def add_atom(self,xpos,ypos):
         #Initial vel, uniform
-        vel=pygame.Vector2.from_polar((0.5, rng.uniform(0, 365)))
+        vel=pygame.Vector2.from_polar((0.005, rng.uniform(0, 365)))
         
         self.atom_x = np.append(self.atom_x, xpos)
         self.atom_y = np.append(self.atom_y, ypos)
-        self.atom_vx = np.append(self.atom_vx,vel.x)
-        self.atom_vy = np.append(self.atom_vy,vel.y)
-        #self.atom_vx = np.append(self.atom_vx,0)
-        #self.atom_vy = np.append(self.atom_vy,0)
+        #self.atom_vx = np.append(self.atom_vx,vel.x)
+        #self.atom_vy = np.append(self.atom_vy,vel.y)
+        self.atom_vx = np.append(self.atom_vx,0)
+        self.atom_vy = np.append(self.atom_vy,0)
         self.Natoms += 1
         
 
@@ -180,8 +181,8 @@ walls.add(object_)
 
 # add some atoms
 for xpos in range(50,SCREEN_WIDTH-50,70):
-    for ypos in range(50,SCREEN_WIDTH-50,70):
-        add_atom(sim, atoms, xpos, ypos)
+   for ypos in range(50,SCREEN_WIDTH-50,70):
+       add_atom(sim, atoms, xpos, ypos)
 print('Natoms=' + str(sim.Natoms))  
             
 
@@ -194,9 +195,9 @@ running = True
 Nsteps = 0
 
 # for speed test
-Tstart = time.perf_counter()
-Nmax=12000
-testN=0
+# Tstart = time.perf_counter()
+# Nmax=12000
+# testN=0
 
 
 while running:
@@ -205,11 +206,11 @@ while running:
     sim.update()    
     Nsteps += 1
  
-    #for test with fixed number of iterations
-    testN += 1
-    if testN == Nmax:
-        running=False
-        Tend = time.perf_counter()
+    # for test with fixed number of iterations
+    # testN += 1
+    # if testN == Nmax:
+    #     running=False
+    #     Tend = time.perf_counter()
 
     # draw if needed
     if Nsteps >= 1000: 
@@ -239,9 +240,10 @@ while running:
         atoms.draw(screen) 
         # flip() the display to put your work on screen
         pygame.display.flip()
+        clock.tick(25) 
 
 
-DT=Tend-Tstart
-print('steps per second: ' + str(Nmax/DT))    
+# DT=Tend-Tstart
+# print('steps per second: ' + str(Nmax/DT))    
 
 pygame.quit()

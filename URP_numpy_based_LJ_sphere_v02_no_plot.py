@@ -22,7 +22,7 @@ WALL_THICKNESS=10
 rng = np.random.default_rng()
 
 
-#@numba.njit(nopython=True)        
+@numba.njit(nopython=True)        
 def update_forces_JL(atom_x,atom_y,atom_eps,atom_radius):
         fx = np.zeros_like(atom_x)
         fy = np.zeros_like(atom_y)
@@ -47,7 +47,7 @@ def update_forces_JL(atom_x,atom_y,atom_eps,atom_radius):
                     pre = eps*(-48.0*sig12/r12+24.0*sig6/r6)/r2
                     fx[kk] += (x*pre)
                     fy[kk] += (y*pre)
-                    return fx, fy
+        return fx, fy
 
 # class definitions
 class Sim():
