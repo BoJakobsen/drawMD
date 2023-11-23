@@ -8,33 +8,34 @@
 import pygame
 import numpy as np
 #import matplotlib.pyplot as plt
-from itertools import chain
 import time
 import numba 
 
+# box size in natural units (sigma)
+BOX_HEIGHT=40
+BOX_WIDTH=40
+
+# for the graphics
 RED = (255, 0, 0) 
 BGCOLOR = "purple"
-ATOM_SIZE=10 # pixel diameter for one atom
-MAX_SPEED=10 # 
-SCREEN_HEIGHT=400
-SCREEN_WIDTH=400
+SCALEFACTOR=20 # Scale factor for graphics 
 WALL_THICKNESS=10
 
 rng = np.random.default_rng()
 
 @numba.njit()
-def update_forces_JL(atom_x,atom_y,atom_eps,atom_radius):
+def update_forces_JL(atom_x,atom_y,atom_eps,atom_sigma):
         fx = np.zeros_like(atom_x)
         fy = np.zeros_like(atom_y)
 
         # # # Lennard-Jones pair forces between particles 
         # # for now all atoms are the same
-        sig = atom_radius + atom_radius
-        sig2 = sig * sig
+        #sig = atom_sigma # atom "radius" is approx sigma/2
+        sig2 = atom_sigma * atom_sigma
         sig6 = sig2 * sig2 * sig2 
         sig12 = sig6 * sig6     
 
-        eps = np.sqrt(atom_eps * atom_eps) 
+        eps = atom_eps 
 
         for kk in range(0, len(atom_x)): # loop all atoms
             for jj in range(0,len(atom_x)):
@@ -44,10 +45,9 @@ def update_forces_JL(atom_x,atom_y,atom_eps,atom_radius):
                     r2 = np.square(x) + np.square(y)
                     r6 = r2 * r2 * r2
                     r12 = r6 * r6        
-                    pre = eps*(-48.0*sig12/r12+24.0*sig6/r6)/r2
+                    pre = eps*(-48.0*sig12/r12+24.0*sig6/r6)/r2 #OBS r2 is used here
                     fx[kk] += (x*pre)
-                    fy[kk] += (y*pre)
-                    
+                    fy[kk] += (y*pre)                    
         return fx, fy
 
 
@@ -55,14 +55,14 @@ def update_forces_JL(atom_x,atom_y,atom_eps,atom_radius):
 
 class Sim():
     def __init__(self):
-        self.dt = 0.005*ATOM_SIZE
+        self.dt = 0.005
         self.eps_wall=10
-        self.x0=WALL_THICKNESS
-        self.y0=WALL_THICKNESS
-        self.x1=SCREEN_WIDTH - WALL_THICKNESS # 
-        self.y1=SCREEN_HEIGHT -WALL_THICKNESS # 
+        self.x0=0
+        self.y0=0
+        self.x1=BOX_WIDTH 
+        self.y1=BOX_HEIGHT
         self.mass=1
-        self.radius=ATOM_SIZE
+        self.sigma=1
         self.eps=1
         self.Natoms=0
         self.atom_x=np.empty([0])
@@ -85,7 +85,6 @@ class Sim():
         self.Natoms += 1
         
 
-
     def update_forces(self):
         self.atom_fx=np.zeros_like(self.atom_x)
         self.atom_fy=np.zeros_like(self.atom_x)
@@ -104,7 +103,7 @@ class Sim():
         tmp *= tmp*tmp
         self.atom_fy -= self.eps_wall/tmp      
 
-        fx, fy = update_forces_JL(self.atom_x,self.atom_y,self.eps,self.radius)
+        fx, fy = update_forces_JL(self.atom_x,self.atom_y,self.eps,self.sigma)
         self.atom_fx += fx
         self.atom_fy += fy
 
@@ -133,7 +132,7 @@ class Atom(pygame.sprite.Sprite):
         self.Natom = Natom # atom number in the sim
     
     def update(self,sim):    
-        self.rect.center = (sim.atom_x[self.Natom] , sim.atom_y[self.Natom]) 
+        self.rect.center = (sim.atom_x[self.Natom]*SCALEFACTOR , sim.atom_y[self.Natom]*SCALEFACTOR) 
         
         
 class Wall(pygame.sprite.Sprite):
@@ -153,7 +152,7 @@ class Wall(pygame.sprite.Sprite):
 
 def add_atom(sim,atoms,xpos,ypos):
     sim.add_atom(xpos,ypos)
-    object_ = Atom(RED, ATOM_SIZE, sim.Natoms-1) 
+    object_ = Atom(RED, sim.sigma/2*SCALEFACTOR, sim.Natoms-1) 
     object_.update(sim)
     atoms.add(object_)
 
@@ -162,29 +161,31 @@ sim = Sim()
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+screen = pygame.display.set_mode((BOX_WIDTH*SCALEFACTOR, BOX_HEIGHT*SCALEFACTOR))
 clock = pygame.time.Clock()
 
 # Setup a list for the sprites for atoms
 atoms = pygame.sprite.Group() 
 
 # make wall sprites
-walls=pygame.sprite.Group()
-object_=Wall(0, 0, WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(1,0))
-walls.add(object_)
-object_=Wall(SCREEN_WIDTH-WALL_THICKNESS, 0, SCREEN_WIDTH, SCREEN_HEIGHT,'green', pygame.Vector2(-1,0))
-walls.add(object_)
-object_=Wall(WALL_THICKNESS, 0, SCREEN_WIDTH-WALL_THICKNESS, WALL_THICKNESS,'green', pygame.Vector2(0,-1))
-walls.add(object_)
-object_=Wall(WALL_THICKNESS, SCREEN_HEIGHT-WALL_THICKNESS, SCREEN_WIDTH-WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(0,1))
-walls.add(object_)
+# walls=pygame.sprite.Group()
+# object_=Wall(0, 0, WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(1,0))
+# walls.add(object_)
+# object_=Wall(SCREEN_WIDTH-WALL_THICKNESS, 0, SCREEN_WIDTH, SCREEN_HEIGHT,'green', pygame.Vector2(-1,0))
+# walls.add(object_)
+# object_=Wall(WALL_THICKNESS, 0, SCREEN_WIDTH-WALL_THICKNESS, WALL_THICKNESS,'green', pygame.Vector2(0,-1))
+# walls.add(object_)
+# object_=Wall(WALL_THICKNESS, SCREEN_HEIGHT-WALL_THICKNESS, SCREEN_WIDTH-WALL_THICKNESS, SCREEN_HEIGHT,'green', pygame.Vector2(0,1))
+# walls.add(object_)
 
 # add some atoms
-for xpos in range(50,SCREEN_WIDTH-50,70):
-   for ypos in range(50,SCREEN_WIDTH-50,70):
-       add_atom(sim, atoms, xpos, ypos)
-print('Natoms=' + str(sim.Natoms))  
+if False:
+    for xpos in range(5,BOX_WIDTH-5,7):
+        for ypos in range(5,BOX_HEIGHT-5,7):
+            add_atom(sim, atoms, xpos, ypos)
+    print('Natoms=' + str(sim.Natoms))  
             
+add_atom(sim, atoms, BOX_WIDTH/2, BOX_HEIGHT/2)
 
 # Handle only one atom per click
 new_click=True        
@@ -225,7 +226,7 @@ while running:
         m_left, _, _ = pygame.mouse.get_pressed()
         if m_left and new_click:
             clickpos_x, clickpos_y = pygame.mouse.get_pos()
-            add_atom(sim, atoms, clickpos_x, clickpos_y)            
+            add_atom(sim, atoms, clickpos_x/SCALEFACTOR, clickpos_y/SCALEFACTOR)            
             new_click=False
         if not m_left:
             new_click=True
@@ -236,7 +237,7 @@ while running:
         # fill the screen with a color to wipe away anything from last frame
         screen.fill(BGCOLOR)
         # draw atoms and walls
-        walls.draw(screen)
+        #walls.draw(screen)
         atoms.draw(screen) 
         # flip() the display to put your work on screen
         pygame.display.flip()
