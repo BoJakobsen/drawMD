@@ -71,7 +71,10 @@ class Sim():
         self.atom_vy=np.empty([0])
         self.atom_fx=np.empty([0])
         self.atom_fy=np.empty([0])
-
+        # Thermodynamic parameters
+        self.langevin_kT = 2 # min="0.0" max="2.5"  value=1.0 
+        self.langevin_friction = 0.030 #max="0.030", value=0.01
+    
     def add_atom(self,xpos,ypos):
         #Initial vel, uniform
         vel=pygame.Vector2.from_polar((0.005, rng.uniform(0, 365)))
@@ -107,6 +110,28 @@ class Sim():
         self.atom_fx += fx
         self.atom_fy += fy
 
+        # Add Langevin forces for thermostatting:
+	    # Random noise from Normal distribution and friction force from velocity.
+	    # The Normal distribution is approximated by adding three random numbers from a box-distribution.
+
+		#Vector on unit circle
+        for kk in range(0,self.Natoms):
+            ux = 1
+            uy = 1
+            ur = np.sqrt(2)
+            while (ur>1) :
+                ux = 2.0*(rng.random()-0.5)
+                uy = 2.0*(rng.random()-0.5)
+                ur = np.sqrt(ux*ux+uy*uy)
+            ux = ux/ur
+            uy = uy/ur
+            std = np.sqrt(2.0*self.langevin_kT*self.langevin_friction*self.mass/self.dt)
+            flength = std*2*(rng.random()+rng.random()+rng.random()-1.5)
+            self.atom_fx[kk] += flength*ux  
+            self.atom_fy[kk] += flength*uy  
+            self.atom_fx[kk] -= self.mass*self.langevin_friction*self.atom_vx[kk] #   // TODO: Is this right with Leap frog ???
+            self.atom_fy[kk] -= self.mass*self.langevin_friction*self.atom_vy[kk]
+	    
     	
     def update(self):
         self.atom_x += self.atom_vx * self.dt
@@ -179,13 +204,13 @@ atoms = pygame.sprite.Group()
 # walls.add(object_)
 
 # add some atoms
-if False:
-    for xpos in range(5,BOX_WIDTH-5,7):
-        for ypos in range(5,BOX_HEIGHT-5,7):
+if True:
+    for xpos in range(5,BOX_WIDTH-5,3):
+        for ypos in range(5,BOX_HEIGHT-5,3):
             add_atom(sim, atoms, xpos, ypos)
     print('Natoms=' + str(sim.Natoms))  
             
-add_atom(sim, atoms, BOX_WIDTH/2, BOX_HEIGHT/2)
+#add_atom(sim, atoms, BOX_WIDTH/2, BOX_HEIGHT/2)
 
 # Handle only one atom per click
 new_click=True        
@@ -214,7 +239,7 @@ while running:
     #     Tend = time.perf_counter()
 
     # draw if needed
-    if Nsteps >= 1000: 
+    if Nsteps >= 100: 
         Nsteps = 0
 
         # poll for events
